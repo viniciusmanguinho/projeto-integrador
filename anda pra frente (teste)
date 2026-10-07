@@ -1,0 +1,142 @@
+codigo para andar carro para frente:
+
+
+int IN1 = 18;
+int IN2 = 19;
+int ENA = 5;
+
+void setup() {
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENA, OUTPUT);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  for (int velocidade = 0; velocidade <= 255; velocidade += 5) {
+    analogWrite(ENA, velocidade);
+    delay(100);
+  }
+
+  analogWrite(ENA, 255);
+}
+
+void loop() {
+}
+
+
+codigo que permite ele andar para esquerda e direita (sem controle real)
+
+int IN1 = 18;  // Motor esquerdo
+int IN2 = 19;
+int ENA = 5;
+
+int IN3 = 21;  // Motor direito
+int IN4 = 22;
+int ENB = 23;
+
+void setup() {
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENA, OUTPUT);
+
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+}
+
+void loop() {
+
+  // ANDAR PARA FRENTE
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  analogWrite(ENA, 200);
+  analogWrite(ENB, 200);
+
+  delay(2000);
+
+  // VIRAR PARA A ESQUERDA
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  delay(1000);
+
+  // VIRAR PARA A DIREITA
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+
+  delay(1000);
+}
+
+
+esquerda e direita com controle
+
+int IN1 = 18;
+int IN2 = 19;
+int ENA = 5;       // Motor esquerdo
+
+int IN3 = 21;
+int IN4 = 22;
+int ENB = 23;      // Motor direito
+
+int volante;
+int velocidade = 0;
+
+void setup() {
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENA, OUTPUT);
+
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+
+  for (velocidade = 0; velocidade <= 255; velocidade += 5) {
+    analogWrite(ENA, velocidade);
+    analogWrite(ENB, velocidade);
+    delay(100);
+  }
+}
+
+void loop() {
+
+  volante = analogRead(34);
+
+  if (volante < 1400) {
+
+    analogWrite(ENA, 100);  // Motor esquerdo mais lento
+    analogWrite(ENB, 255);  // Motor direito mais rápido
+  }
+
+ 
+  else if (volante >= 1400 && volante <= 2600) {
+
+    analogWrite(ENA, 255);
+    analogWrite(ENB, 255);
+  }
+
+  else {
+
+    analogWrite(ENA, 255);  // Motor esquerdo mais rápido
+    analogWrite(ENB, 100);  // Motor direito mais lento
+  }
+}
+
+
+

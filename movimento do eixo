@@ -1,0 +1,30 @@
+180 graus:
+
+#include <ESP32Servo.h>
+
+Servo eixoX;  
+
+const int pinoServo = 18; 
+
+void setup() {
+  // Configurações obrigatórias de PWM para o ESP32
+  ESP32PWM::allocateTimer(0);
+  eixoX.setPeriodHertz(50);    
+  
+ 
+  eixoX.attach(pinoServo, 500, 2400); 
+}
+
+void loop() {
+  // 1. Vai de 0 a 180 graus (Ida)
+  for (int angulo = 0; angulo <= 180; angulo += 1) { 
+    eixoX.write(angulo);              
+    delay(15); // Controla a velocidade (menor o tempo, mais rápido ele gira)
+  }
+  
+  // 2. Vai de 180 a 0 graus (Volta)
+  for (int angulo = 180; angulo >= 0; angulo -= 1) { 
+    eixoX.write(angulo);              
+    delay(15); // Controla a velocidade
+  }
+}

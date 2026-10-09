@@ -1,0 +1,137 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+Servo servo;
+
+WebServer servidor(80);
+
+const char* nomeRede = "ESP32-Servo";
+const char* senha = "12345678";
+
+int pinoServo = 18;
+int angulo = 90;
+
+void pagina() {
+
+  String html = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Controle do Eixo</title>
+
+  <style>
+
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin-top: 50px;
+    }
+
+    h1 {
+      font-size: 30px;
+    }
+
+    #valor {
+      font-size: 45px;
+      font-weight: bold;
+      margin: 25px;
+    }
+
+    input[type=range] {
+      width: 90%;
+      height: 40px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <h1>Controle do Eixo</h1>
+
+  <div id="valor">90°</div>
+
+  <input
+    type="range"
+    min="0"
+    max="180"
+    value="90"
+    oninput="mover(this.value)"
+  >
+
+  <script>
+
+    function mover(valor) {
+
+      document.getElementById("valor").innerHTML = valor + "°";
+
+      fetch("/servo?angulo=" + valor);
+
+    }
+
+  </script>
+
+</body>
+</html>
+)rawliteral";
+
+  servidor.send(200, "text/html", html);
+}
+
+
+void controlarServo() {
+
+  if (servidor.hasArg("angulo")) {
+
+    int novoAngulo = servidor.arg("angulo").toInt();
+
+    if (novoAngulo >= 0 && novoAngulo <= 180) {
+
+      angulo = novoAngulo;
+
+      servo.write(angulo);
+
+      Serial.print("Angulo: ");
+      Serial.println(angulo);
+    }
+  }
+
+  servidor.send(200, "text/plain", "OK");
+}
+
+
+void setup() {
+
+  Serial.begin(115200);
+
+  servo.attach(pinoServo);
+
+  servo.write(90);
+
+  WiFi.softAP(nomeRede, senha);
+
+  Serial.println();
+  Serial.println("ESP32 iniciado!");
+  Serial.println("Rede: ESP32-Servo");
+  Serial.println("Senha: 12345678");
+
+  Serial.print("IP: ");
+  Serial.println(WiFi.softAPIP());
+
+  servidor.on("/", pagina);
+
+  servidor.on("/servo", controlarServo);
+
+  servidor.begin();
+
+  Serial.println("Servidor iniciado!");
+}
+
+
+void loop() {
+
+  servidor.handleClient();
+}

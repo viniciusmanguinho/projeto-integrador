@@ -1,0 +1,230 @@
+
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+const char* nomeRede = "ESP32-Carro";
+const char* senha = "12345678";
+
+WebServer servidor(80);
+Servo servo;
+
+// Ponte H mini
+const int N1 = 25;
+const int N2 = 26;
+
+// Servo
+const int pinoServo = 18;
+
+int velocidade = 0;
+int direcao = 90;
+
+const char pagina[] PROGMEM = R"HTML(
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Joystick ESP32</title>
+<style>
+body {
+  font-family: Arial;
+  background: #151922;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+  touch-action: none;
+}
+h1 { font-size: 26px; }
+canvas {
+  width: min(85vw, 340px);
+  height: min(85vw, 340px);
+  touch-action: none;
+  display: block;
+  margin: 20px auto;
+}
+.info {
+  font-size: 20px;
+  margin: 15px;
+}
+button {
+  padding: 12px 24px;
+  font-size: 18px;
+  border-radius: 10px;
+}
+</style>
+</head>
+<body>
+<h1>Controle do Carro</h1>
+<p>Arraste para virar e acelerar</p>
+
+<canvas id="joystick" width="340" height="340"></canvas>
+
+<div class="info">Direção: <span id="dir">90</span>°</div>
+<div class="info">Velocidade: <span id="vel">0</span>%</div>
+
+<button onclick="parar()">PARAR</button>
+
+<script>
+const canvas = document.getElementById("joystick");
+const ctx = canvas.getContext("2d");
+
+const centro = 170;
+const raio = 125;
+const raioBotao = 34;
+
+let x = centro;
+let y = centro;
+let ativo = false;
+let ultimoEnvio = 0;
+
+function desenhar() {
+  ctx.clearRect(0, 0, 340, 340);
+
+  ctx.beginPath();
+  ctx.arc(centro, centro, raio, 0, Math.PI * 2);
+  ctx.fillStyle = "#303744";
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "#687589";
+  ctx.stroke();
+
+  ctx.fillStyle = "#aab6c7";
+  ctx.font = "bold 25px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("↑", 170, 75);
+  ctx.fillText("↓", 170, 285);
+  ctx.fillText("←", 75, 178);
+  ctx.fillText("→", 265, 178);
+
+  ctx.beginPath();
+  ctx.arc(x, y, raioBotao, 0, Math.PI * 2);
+  ctx.fillStyle = ativo ? "#4185ff" : "#e0e7f0";
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+}
+
+function enviar() {
+  let d = Math.round(90 + (x - centro) / raio * 45);
+  let v = Math.round((centro - y) / raio * 100);
+
+  d = Math.max(45, Math.min(135, d));
+  v = Math.max(0, Math.min(100, v));
+
+  document.getElementById("dir").textContent = d;
+  document.getElementById("vel").textContent = v;
+
+  const agora = Date.now();
+  if (agora - ultimoEnvio >= 60) {
+    ultimoEnvio = agora;
+    fetch("/controle?d=" + d + "&v=" + v).catch(() => {});
+  }
+}
+
+function mover(evento) {
+  const rect = canvas.getBoundingClientRect();
+  let px = (evento.clientX - rect.left) * 340 / rect.width;
+  let py = (evento.clientY - rect.top) * 340 / rect.height;
+
+  let dx = px - centro;
+  let dy = py - centro;
+  let distancia = Math.sqrt(dx * dx + dy * dy);
+
+  if (distancia > raio) {
+    dx = dx * raio / distancia;
+    dy = dy * raio / distancia;
+  }
+
+  x = centro + dx;
+  y = centro + dy;
+
+  desenhar();
+  enviar();
+}
+
+function parar() {
+  ativo = false;
+  x = centro;
+  y = centro;
+  desenhar();
+
+  document.getElementById("dir").textContent = "90";
+  document.getElementById("vel").textContent = "0";
+
+  fetch("/controle?d=90&v=0").catch(() => {});
+}
+
+canvas.addEventListener("pointerdown", e => {
+  ativo = true;
+  canvas.setPointerCapture(e.pointerId);
+  mover(e);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (ativo) mover(e);
+});
+
+canvas.addEventListener("pointerup", parar);
+canvas.addEventListener("pointercancel", parar);
+
+desenhar();
+</script>
+</body>
+</html>
+)HTML";
+
+void paginaPrincipal() {
+  servidor.send_P(200, "text/html", pagina);
+}
+
+void controlar() {
+  if (servidor.hasArg("d") && servidor.hasArg("v")) {
+    direcao = constrain(servidor.arg("d").toInt(), 45, 135);
+    velocidade = constrain(servidor.arg("v").toInt(), 0, 100);
+
+    servo.write(direcao);
+
+    int pwm = map(velocidade, 0, 100, 0, 255);
+
+    // Motor para frente
+    if (velocidade == 0) {
+      analogWrite(N1, 0);
+      digitalWrite(N2, LOW);
+    } else {
+      analogWrite(N1, pwm);
+      digitalWrite(N2, LOW);
+    }
+  }
+
+  servidor.send(200, "text/plain", "OK");
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(N1, OUTPUT);
+  pinMode(N2, OUTPUT);
+
+  digitalWrite(N1, LOW);
+  digitalWrite(N2, LOW);
+
+  servo.setPeriodHertz(50);
+  servo.attach(pinoServo, 500, 2400);
+  servo.write(90);
+
+  WiFi.softAP(nomeRede, senha);
+
+  servidor.on("/", paginaPrincipal);
+  servidor.on("/controle", controlar);
+  servidor.begin();
+
+  Serial.println("Wi-Fi: ESP32-Carro");
+  Serial.println("Senha: 12345678");
+  Serial.println("Acesse: http://192.168.4.1");
+}
+
+void loop() {
+  servidor.handleClient();
+}

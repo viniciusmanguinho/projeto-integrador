@@ -1,0 +1,79 @@
+movimento eixo pelo bluetooth:
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+#include <ESP32Servo.h>
+
+Servo servo;
+
+int pinoServo = 18;
+int angulo = 90;
+
+BLECharacteristic *caracteristica;
+
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+class MinhaCaracteristica : public BLECharacteristicCallbacks {
+
+  void onWrite(BLECharacteristic *pCaracteristica) {
+
+    String valor = pCaracteristica->getValue();
+
+    if (valor.length() > 0) {
+
+      int novoAngulo = valor.toInt();
+
+      if (novoAngulo >= 0 && novoAngulo <= 180) {
+
+        angulo = novoAngulo;
+
+        servo.write(angulo);
+
+        Serial.print("Angulo: ");
+        Serial.println(angulo);
+      }
+    }
+  }
+};
+
+void setup() {
+
+  Serial.begin(115200);
+
+  servo.attach(pinoServo);
+  servo.write(90);
+
+  BLEDevice::init("ESP32-Servo");
+
+  BLEServer *servidor = BLEDevice::createServer();
+
+  BLEService *servico = servidor->createService(SERVICE_UUID);
+
+  caracteristica = servico->createCharacteristic(
+    CHARACTERISTIC_UUID,
+    BLECharacteristic::PROPERTY_READ |
+    BLECharacteristic::PROPERTY_WRITE
+  );
+
+  caracteristica->setCallbacks(new MinhaCaracteristica());
+
+  caracteristica->setValue("90");
+
+  servico->start();
+
+  BLEAdvertising *anuncio = BLEDevice::getAdvertising();
+
+  anuncio->addServiceUUID(SERVICE_UUID);
+
+  BLEDevice::startAdvertising();
+
+  Serial.println("Bluetooth iniciado!");
+  Serial.println("Procure por ESP32-Servo");
+}
+
+void loop() {
+
+  delay(20);
+}

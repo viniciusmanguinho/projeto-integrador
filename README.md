@@ -11,10 +11,10 @@
 
 | Integrante | Área principal | Responsabilidades |
 |---|---|---|
-| Nome 1 | Piloto e calibração | Testes de dirigibilidade, calibração e operação |
-| Nome 2 | Mecânica | Chassi, direção, transmissão e montagem |
-| Nome 3 | Projeto e documentação | Arquitetura, desenhos, organização da documentação |
-| Nome 4 | Eletrônica e integração elétrica | Alimentação, drivers, motores, sensores e conexões |
+|  Yan Cabral | Piloto e calibração | Testes de dirigibilidade, calibração e operação |
+| Miguel Augusto e Gabriel Lucas| Mecânica | Chassi, direção, transmissão e montagem |
+| Jonathas Rodrigues | Projeto e documentação | Arquitetura, desenhos, organização da documentação |
+| Amanda Augusta | Eletrônica e integração elétrica | Alimentação, drivers, motores, sensores e conexões |
 | Vinícius Vilar| Software e controle | Comunicação, controle, sensores e automação |
 
 > As áreas acima indicam a responsabilidade principal de cada integrante, mas o trabalho pode ser compartilhado entre a equipe.
@@ -38,9 +38,9 @@ Exemplo:
 - controlador principal: ____________________;
 - driver de motores: ____________________;
 - câmera embarcada: ____________________;
-- estratégia de alimentação: ____________________;
+- estratégia de alimentação: Baterias;
 - sensores adicionais, se houver: ____________________;
-- recursos de automação, se houver: ____________________.
+- recursos de automação, se houver: Eixo Servo.
 
 ---
 
@@ -72,7 +72,7 @@ Celular embarcado --> transmissão de vídeo
 - **Eletrônica:** descrever resumidamente.
 - **Software:** descrever resumidamente.
 - **Comunicação:** descrever resumidamente.
-- **Alimentação:** descrever resumidamente.
+- **Alimentação:** Via bateria disponibilizada no kit
 
 ---
 
@@ -146,7 +146,7 @@ docs/
 | ESP32 | 1 | Kit da organização | Disponível |
 | Motor DC | 2 | Kit da organização | Disponível |
 | Driver de motor | 1 | Kit da organização | Disponível |
-| ____________________ | ___ | Equipe / organização | ____________________ |
+| Eixo Servo | 1 | Equipe / Disponível |
 
 ---
 

@@ -1,0 +1,150 @@
+
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESP32Servo.h>
+
+const char* nomeRede = "ESP32-Carro";
+const char* senha = "12345678";
+
+WebServer servidor(80);
+Servo servo;
+
+// Motor A
+const int N1 = 25;
+const int N2 = 26;
+
+// Motor B
+const int N3 = 27;
+const int N4 = 14;
+
+// Servo
+const int pinoServo = 18;
+
+int velocidade = 200;
+int direcao = 90;
+
+const char pagina[] PROGMEM = R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body {
+  background:#151922;
+  color:white;
+  text-align:center;
+  font-family:Arial;
+}
+input {
+  width:85%;
+  margin:25px;
+}
+button {
+  padding:15px;
+  margin:10px;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Controle do Carrinho</h1>
+
+<h3>Direção: <span id="valor">90</span>°</h3>
+
+<input type="range" min="45" max="135" value="90"
+oninput="document.getElementById('valor').innerText=this.value; fetch('/servo?d='+this.value)">
+
+<br>
+
+<button onclick="fetch('/motor?v=1')">ANDAR</button>
+<button onclick="fetch('/motor?v=0')">PARAR</button>
+
+</body>
+</html>
+)HTML";
+
+void andar() {
+
+  analogWrite(N1, velocidade);
+  digitalWrite(N2, LOW);
+
+  analogWrite(N3, velocidade);
+  digitalWrite(N4, LOW);
+
+}
+
+void parar() {
+
+  analogWrite(N1, 0);
+  digitalWrite(N2, LOW);
+
+  analogWrite(N3, 0);
+  digitalWrite(N4, LOW);
+
+}
+
+void paginaPrincipal() {
+  servidor.send_P(200, "text/html", pagina);
+}
+
+void controlarServo() {
+
+  direcao = servidor.arg("d").toInt();
+
+  direcao = constrain(direcao, 45, 135);
+
+  servo.write(direcao);
+
+  servidor.send(200, "text/plain", "OK");
+}
+
+void controlarMotor() {
+
+  int comando = servidor.arg("v").toInt();
+
+  if (comando == 1) {
+    andar();
+  } else {
+    parar();
+  }
+
+  servidor.send(200, "text/plain", "OK");
+}
+
+void setup() {
+
+  Serial.begin(115200);
+
+  pinMode(N1, OUTPUT);
+  pinMode(N2, OUTPUT);
+  pinMode(N3, OUTPUT);
+  pinMode(N4, OUTPUT);
+
+  servo.attach(pinoServo, 500, 2400);
+  servo.write(90);
+
+  parar();
+
+  WiFi.softAP(nomeRede, senha);
+
+  servidor.on("/", paginaPrincipal);
+  servidor.on("/servo", controlarServo);
+  servidor.on("/motor", controlarMotor);
+
+  servidor.begin();
+
+  andar();
+
+  Serial.println("Wi-Fi: ESP32-Carro");
+  Serial.println("Senha: 12345678");
+  Serial.println("Acesse: http://192.168.4.1");
+
+}
+
+void loop() {
+
+  servidor.handleClient();
+
+}

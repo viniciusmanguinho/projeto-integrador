@@ -1,190 +1,160 @@
 
 #include <WiFi.h>
-#include <PubSubClient.h>
 #include <ESP32Servo.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// WIFI
-const char* nomeRede = "NOME_DO_WIFI";
-const char* senha = "SENHA_DO_WIFI";
+// Wi-Fi
+const char* ssid = "LITEC";
+const char* password = "liteclitec";
 
 // MQTT
-const char* servidorMQTT = "COLOQUE_O_IP_DO_COMPUTADOR";
-const int portaMQTT = 1883;
-const char* topico = "dados_volante";
+const char* mqtt_server = "192.168.168.102";
+const char* mqtt_topic = "dados_volante";
 
-WiFiClient espClient;
-PubSubClient clienteMQTT(espClient);
-
-// MX1508 - Motor A
-const int N1 = 25;
-const int N2 = 26;
-
-// MX1508 - Motor B
-const int N3 = 27;
-const int N4 = 14;
+// Motores
+int N1 = 25;
+int N2 = 26;
+int N3 = 27;
+int N4 = 14;
 
 // Servo
-const int pinoServo = 18;
+int pinoServo = 18;
 Servo servo;
 
-// Configurações
-int velocidadeMaxima = 160;
+// Conexao
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+int velocidade = 0;
 int direcao = 90;
 
-float volante = 0;
-float acelerador = 0;
-
-unsigned long ultimaMensagem = 0;
-
-void controlarMotores() {
-
-  int pwm = abs(acelerador) * velocidadeMaxima;
-
-  if (acelerador > 0.05) {
-
-    // Frente
-    analogWrite(N1, pwm);
-    digitalWrite(N2, LOW);
-
-    analogWrite(N3, pwm);
-    digitalWrite(N4, LOW);
-
-  } 
-  else if (acelerador < -0.05) {
-
-    // Ré
-    digitalWrite(N1, LOW);
-    analogWrite(N2, pwm);
-
-    digitalWrite(N3, LOW);
-    analogWrite(N4, pwm);
-
-  } 
-  else {
-
-    // Parar
-    digitalWrite(N1, LOW);
-    digitalWrite(N2, LOW);
-
-    digitalWrite(N3, LOW);
-    digitalWrite(N4, LOW);
-
-  }
-}
-
-void receberMensagem(char* topicoRecebido, byte* mensagem, unsigned int tamanho) {
-
-  StaticJsonDocument<256> dados;
-
-  DeserializationError erro = deserializeJson(dados, mensagem, tamanho);
-
-  if (erro) {
-    Serial.println("Erro no JSON");
-    return;
-  }
-
-  int id = dados["car_id"] | 0;
-
-  if (id != 1) {
-    return;
-  }
-
-  volante = dados["volante"] | 0.0;
-  acelerador = dados["acelerador"] | 0.0;
-
-  volante = constrain(volante, -1.0, 1.0);
-  acelerador = constrain(acelerador, -1.0, 1.0);
-
-  // Converter volante para angulo
-  direcao = 90 + volante * 45;
-
-  servo.write(direcao);
-
-  controlarMotores();
-
-  ultimaMensagem = millis();
-
-  Serial.print("Volante: ");
-  Serial.println(volante);
-
-  Serial.print("Acelerador: ");
-  Serial.println(acelerador);
-}
-
-void conectarMQTT() {
-
-  while (!clienteMQTT.connected()) {
-
-    Serial.println("Conectando ao MQTT...");
-
-    if (clienteMQTT.connect("ESP32_Carrinho_1")) {
-
-      Serial.println("MQTT conectado!");
-
-      clienteMQTT.subscribe(topico);
-
-    } 
-    else {
-
-      Serial.println("Falha na conexao MQTT");
-
-      delay(2000);
-    }
-  }
-}
+unsigned long tempoMensagem = 0;
 
 void setup() {
 
   Serial.begin(115200);
 
+  // Pinos dos motores
   pinMode(N1, OUTPUT);
   pinMode(N2, OUTPUT);
   pinMode(N3, OUTPUT);
   pinMode(N4, OUTPUT);
 
-  controlarMotores();
+  // Motores desligados
+  analogWrite(N1, 0);
+  digitalWrite(N2, LOW);
 
-  servo.attach(pinoServo, 500, 2400);
+  analogWrite(N3, 0);
+  digitalWrite(N4, LOW);
+
+  // Servo
+  servo.attach(pinoServo);
   servo.write(90);
 
-  // Conectar ao Wi-Fi
-  WiFi.begin(nomeRede, senha);
+  // Wi-Fi
+  WiFi.begin(ssid, password);
 
-  Serial.print("Conectando ao Wi-Fi");
+  Serial.print("Conectando Wi-Fi");
 
   while (WiFi.status() != WL_CONNECTED) {
-
     delay(500);
     Serial.print(".");
   }
 
-  Serial.println();
-  Serial.println("Wi-Fi conectado!");
+  Serial.println("\nWi-Fi conectado!");
 
-  Serial.print("IP do ESP32: ");
-  Serial.println(WiFi.localIP());
+  // MQTT
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
 
-  // Configurar MQTT
-  clienteMQTT.setServer(servidorMQTT, portaMQTT);
-  clienteMQTT.setCallback(receberMensagem);
+// Recebe as mensagens MQTT
+void callback(char* topic, byte* payload, unsigned int length) {
 
+  StaticJsonDocument<200> dados;
+
+  deserializeJson(dados, payload, length);
+
+  int car_id = dados["car_id"];
+  float volante = dados["volante"];
+  float acelerador = dados["acelerador"];
+
+  // Verifica se a mensagem e do carrinho 1
+  if (car_id == 1) {
+
+    // DIRECAO
+    direcao = 90 + volante * 45;
+
+    servo.write(direcao);
+
+    // ACELERACAO
+    if (acelerador < 0) {
+
+      velocidade = abs(acelerador * 255);
+
+      // Motor A
+      analogWrite(N1, velocidade);
+      digitalWrite(N2, LOW);
+
+      // Motor B
+      analogWrite(N3, velocidade);
+      digitalWrite(N4, LOW);
+
+    } else {
+
+      // Para os motores
+      analogWrite(N1, 0);
+      digitalWrite(N2, LOW);
+
+      analogWrite(N3, 0);
+      digitalWrite(N4, LOW);
+    }
+
+    tempoMensagem = millis();
+
+    Serial.print("Volante: ");
+    Serial.println(volante);
+
+    Serial.print("Direcao: ");
+    Serial.println(direcao);
+
+    Serial.print("Velocidade: ");
+    Serial.println(velocidade);
+  }
 }
 
 void loop() {
 
-  if (!clienteMQTT.connected()) {
-    controlarMotores();
-    conectarMQTT();
+  // Reconecta ao MQTT
+  if (!client.connected()) {
+
+    Serial.println("Conectando MQTT...");
+
+    if (client.connect("Carrinho1")) {
+
+      Serial.println("MQTT conectado!");
+
+      client.subscribe(mqtt_topic);
+
+    } else {
+
+      Serial.println("Falha MQTT");
+      delay(2000);
+    }
   }
 
-  clienteMQTT.loop();
+  client.loop();
 
-  // Parar se ficar sem receber mensagens por 2 segundos
-  if (millis() - ultimaMensagem > 2000) {
+  // Se parar de receber mensagens, para o carrinho
+  if (millis() - tempoMensagem > 700) {
 
-    acelerador = 0;
-    controlarMotores();
+    analogWrite(N1, 0);
+    digitalWrite(N2, LOW);
+
+    analogWrite(N3, 0);
+    digitalWrite(N4, LOW);
+
+    servo.write(90);
   }
-
 }

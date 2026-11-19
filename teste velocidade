@@ -55,10 +55,10 @@ void setup() {
 void loop() {
 
   // Motores andando
-  analogWrite(N1, 150);
+  analogWrite(N1, 255);
   digitalWrite(N2, LOW);
 
-  analogWrite(N3, 150);
+  analogWrite(N3, 255);
   digitalWrite(N4, LOW);
 
   delay(3000);
